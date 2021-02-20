@@ -12,7 +12,8 @@ module.exports = {
     "no-debugger": 1,
     "no-unused-vars": 0,
     "indent": "off",
-    "@typescript-eslint/indent": ["error", 2]
+    "@typescript-eslint/indent": ["error", 2],
+    "@typescript-eslint/explicit-function-return-type": 1
   },
   overrides: [{
     files: [
