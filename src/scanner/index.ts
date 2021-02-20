@@ -1,11 +1,11 @@
-interface Token {
+export interface Token {
   type: TokenType
   source: string
   line: number
   col: number
 }
 
-enum TokenType {
+export enum TokenType {
   Number = 'Number',
   Plus = 'Plus',
   Minus = 'Minus',

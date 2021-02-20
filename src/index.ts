@@ -1,6 +1,9 @@
 import { scan } from './scanner'
+import { parse } from './parser'
+import { interpret } from './interpreter'
 import { readFileSync } from 'fs'
 
-const source = readFileSync('./samples/function.yal', { encoding: 'utf8' })
+const source = readFileSync('./samples/program.yal', { encoding: 'utf8' })
 const tokens = scan(source)
-console.log(tokens)
+const prog = parse(tokens)
+interpret(prog)
