@@ -186,7 +186,7 @@ function parseStatement(tokens: Token[], position: number): Statement {
     let lp = position
     const varName = tokens[lp]
     lp += 2
-    const expr = parseExpression(tokens, position)
+    const expr = parseExpression(tokens, lp)
     const stmt: DeclarationStatement = {
       type: StatementType.Declaration,
       varName,

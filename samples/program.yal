@@ -1,5 +1,6 @@
 func main () {
-  return add(sub(4, 3), sub(5, 4))
+  r := 10
+  return add(r, sub(5, 4))
 }
 
 func add(a, b) {
