@@ -168,7 +168,8 @@ async function runTermExpression(expr: TermExpression, func: Function, prog: Pro
   const lhs = await runExpression(expr.lhs, func, prog)
   const rhs = await runExpression(expr.rhs, func, prog)
   if (lhs.type !== rhs.type) {
-    throw new Error(`Can only add and subtract values of same type`)
+    console.log(lhs, rhs)
+    throw new Error(`Can only add and subtract values of same type: ${lhs.type} vs ${rhs.type}`)
   }
 
   let value: number
@@ -190,7 +191,7 @@ async function runTermExpression(expr: TermExpression, func: Function, prog: Pro
   }
 
   return {
-    type: ValueType.Number,
+    type: lhs.type,
     value,
   }
 }

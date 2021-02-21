@@ -1,5 +1,5 @@
-import { NativeFunction, Value, ValueType } from '../index'
-import { readFileSync } from 'fs'
+import { NativeFunction, Value, ValueType, VOID } from '../index'
+import { readFileSync, writeFileSync } from 'fs'
 
 const readFile: NativeFunction = {
   args: ['path'],
@@ -12,7 +12,16 @@ const readFile: NativeFunction = {
   }
 }
 
+const writeFile: NativeFunction = {
+  args: ['path', 'content'],
+  async function(path: string, content: string): Promise<Value> {
+    writeFileSync(path, content)
+    return VOID
+  }
+}
+
 const nativeModule: Record<string, NativeFunction> = {
   readFile,
+  writeFile,
 }
 export default nativeModule

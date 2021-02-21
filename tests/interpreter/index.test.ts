@@ -72,3 +72,10 @@ describe('string', () => {
     expect(res).toBe('test')
   })
 })
+
+describe('string addition', () => {
+  it('works', async () => {
+    const res = await interpretFile(__dirname + '/../samples/string-add.yal')
+    expect(res).toBe('hello world')
+  })
+})

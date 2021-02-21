@@ -1,7 +1,17 @@
 import { print } from "io"
 import { get } from "http"
+import { writeFile } from "fs"
 
 func main() {
-  google := get("http://www.google.com")
-  print(google)
+  print("Getting content")
+  url := "http://www.google.com"
+  content := getHTML(url)
+  print("Got content from " + url)
+  path := "./google.html"
+  writeFile(path, content)
+  print("Wrote " + url + " to file " + path)
+}
+
+func getHTML(url) {
+  return get(url)
 }
