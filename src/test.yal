@@ -1,0 +1,7 @@
+import { print } from "io"
+import { get } from "http"
+
+func main() {
+  google := get("http://www.google.com")
+  print(google)
+}

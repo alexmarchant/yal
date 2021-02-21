@@ -167,16 +167,22 @@ async function runEqualityExpression(expr: EqualityExpression, func: Function, p
 async function runTermExpression(expr: TermExpression, func: Function, prog: Program): Promise<Value> {
   const lhs = await runExpression(expr.lhs, func, prog)
   const rhs = await runExpression(expr.rhs, func, prog)
-  if (lhs.type !== ValueType.Number || rhs.type !== ValueType.Number) {
-    throw new Error(`Can only add and subtract numbers`)
+  if (lhs.type !== rhs.type) {
+    throw new Error(`Can only add and subtract values of same type`)
   }
 
   let value: number
   switch (expr.op.type) {
     case TokenType.Minus:
+      if (lhs.type !== ValueType.Number) {
+        throw new Error(`Cannot subtract this type`)
+      }
       value = lhs.value - rhs.value
       break
     case TokenType.Plus:
+      if (![ValueType.String, ValueType.Number].includes(lhs.type)) {
+        throw new Error(`Cannot add this type`)
+      }
       value = lhs.value + rhs.value
       break
     default:
