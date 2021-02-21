@@ -21,6 +21,8 @@ export enum TokenType {
   CloseCurly = 'CloseCurly',
   KeyFunc = 'KeyFunc',
   KeyReturn = 'KeyReturn',
+  KeyImport = 'KeyImport',
+  KeyFrom = 'KeyFrom',
   Bool = 'Bool',
   NotEqual = 'NotEqual',
   Equal = 'Equal',
@@ -161,6 +163,12 @@ function getToken(source: string, position: number): Token | false {
         break
       case 'return':
         type = TokenType.KeyReturn
+        break
+      case 'import':
+        type = TokenType.KeyImport
+        break
+      case 'from':
+        type = TokenType.KeyFrom
         break
       case 'true':
       case 'false':

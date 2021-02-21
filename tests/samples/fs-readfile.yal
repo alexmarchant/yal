@@ -1,0 +1,5 @@
+import { readFile } from "fs"
+
+func main() {
+  return readFile("/Users/alex/Developer/node/yal/tests/samples/number.txt")
+}

@@ -1,0 +1,5 @@
+import { get } from "http"
+
+func main() {
+  return get("https://www.google.com")
+}

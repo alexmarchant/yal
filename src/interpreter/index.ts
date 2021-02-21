@@ -13,62 +13,77 @@ import {
   CallExpression,
   PrimaryExpression,
   ValueType as PValueType,
+  FunctionType,
+  NativeFunction as PNativeFunction,
 } from '../parser'
 import { TokenType } from '../scanner'
+import nativeModules from './native-modules'
 
 const MAIN_FUNCTION_ID = 'main'
 
-interface Function {
+export interface NativeFunction {
+  args: string[]
+  function: any
+}
+
+export interface Function {
   pFunc: PFunction
   vars: Record<string, Value>
 }
 
-enum ValueType {
+export enum ValueType {
   Number = 'Number',
   Bool = 'Bool',
   Void = 'Void',
   String = 'String',
 }
 
-interface Value {
+export interface Value {
   type: ValueType
   value: any
 }
 
-const VOID: Value = {
+export const VOID: Value = {
   type: ValueType.Void,
   value: null
 }
 
-export function interpret(program: Program): any {
+export async function interpret(program: Program): Promise<any> {
   const mainFunc = program.functions[MAIN_FUNCTION_ID]
   if (!program.functions[MAIN_FUNCTION_ID]) {
     throw new Error('No main function found')
   }
-  const val = runFunction(mainFunc, {}, program)
+  const val = await runFunction(mainFunc as PFunction, [], program)
   return val.value
 }
 
-function runFunction(pFunc: PFunction, params: Record<string, Value>, prog: Program): Value {
+async function runFunction(pFunc: PFunction, params: Value[], prog: Program): Promise<Value> {
+  if (pFunc.args.length !== params.length) {
+    throw new Error(`Called func ${pFunc.name.source} with wrong num of params`)
+  }
+  const paramMap = pFunc.args.reduce<Record<string, Value>>((acc, arg, i) => {
+    acc[arg.source] = params[i]
+    return acc
+  }, {})
   const func: Function = {
     pFunc,
     vars: {
-      ...params
+      ...paramMap
     }
   }
 
   for (const stmt of func.pFunc.statements) {
     switch (stmt.type) {
       case StatementType.Declaration:
-        runDeclarationStatement(stmt as DeclarationStatement, func, prog)
+        await runDeclarationStatement(stmt as DeclarationStatement, func, prog)
         break
       case StatementType.Expression:
         const exprStmt = stmt as ExpressionStatement
-        runExpression(exprStmt.expression, func, prog)
+        await runExpression(exprStmt.expression, func, prog)
         break
       case StatementType.Return:
         const retStmt = stmt as ReturnStatement
-        const val = runExpression(retStmt.expression, func, prog)
+        const val = await runExpression(retStmt.expression, func, prog)
         return val
       default:
         throw new Error(`Unrecognized stmt type ${stmt.type}`)
@@ -78,16 +93,32 @@ function runFunction(pFunc: PFunction, params: Record<string, Value>, prog: Prog
   return VOID
 }
 
-function runDeclarationStatement(stmt: DeclarationStatement, func: Function, prog: Program) {
+async function runNativeFunction(pNativeFunc: PNativeFunction, params: Value[], prog: Program): Promise<Value> {
+  const nativeModule = nativeModules[pNativeFunc.moduleName]
+  if (!nativeModule) {
+    throw new Error(`Module ${pNativeFunc.moduleName} not found`)
+  }
+  const nativeFunc = nativeModule[pNativeFunc.name]
+  if (!nativeFunc) {
+    throw new Error(`Module ${pNativeFunc.moduleName} does not have function ${pNativeFunc.name}`)
+  }
+  if (nativeFunc.args.length !== params.length) {
+    throw new Error(`Called func ${pNativeFunc.name} with wrong num of args`)
+  }
+  const paramsNativeValues = params.map(param => param.value)
+  return await nativeFunc.function(...paramsNativeValues)
+}
+
+async function runDeclarationStatement(stmt: DeclarationStatement, func: Function, prog: Program) {
   const varName = stmt.varName.source
-  const val = runExpression(stmt.expression, func, prog)
+  const val = await runExpression(stmt.expression, func, prog)
   if (func.vars[varName]) {
     throw new Error(`Cannot redeclare var name ${varName}`)
   }
   func.vars[varName] = val
 } 
 
-function runExpression(expr: Expression, func: Function, prog: Program): Value {
+async function runExpression(expr: Expression, func: Function, prog: Program): Promise<Value> {
   switch (expr.type) {
     case ExpressionType.Equality:
       return runEqualityExpression(expr as EqualityExpression, func, prog)
@@ -105,9 +136,9 @@ function runExpression(expr: Expression, func: Function, prog: Program): Value {
   }
 }
 
-function runEqualityExpression(expr: EqualityExpression, func: Function, prog: Program): Value {
-  const lhs = runExpression(expr.lhs, func, prog)
-  const rhs = runExpression(expr.rhs, func, prog)
+async function runEqualityExpression(expr: EqualityExpression, func: Function, prog: Program): Promise<Value> {
+  const lhs = await runExpression(expr.lhs, func, prog)
+  const rhs = await runExpression(expr.rhs, func, prog)
   if (lhs.type !== rhs.type) {
     return {
       type: ValueType.Bool,
@@ -133,9 +164,9 @@ function runEqualityExpression(expr: EqualityExpression, func: Function, prog: P
   }
 }
 
-function runTermExpression(expr: TermExpression, func: Function, prog: Program): Value {
-  const lhs = runExpression(expr.lhs, func, prog)
-  const rhs = runExpression(expr.rhs, func, prog)
+async function runTermExpression(expr: TermExpression, func: Function, prog: Program): Promise<Value> {
+  const lhs = await runExpression(expr.lhs, func, prog)
+  const rhs = await runExpression(expr.rhs, func, prog)
   if (lhs.type !== ValueType.Number || rhs.type !== ValueType.Number) {
     throw new Error(`Can only add and subtract numbers`)
   }
@@ -158,9 +189,9 @@ function runTermExpression(expr: TermExpression, func: Function, prog: Program):
   }
 }
 
-function runFactorExpression(expr: FactorExpression, func: Function, prog: Program): Value {
-  const lhs = runExpression(expr.lhs, func, prog)
-  const rhs = runExpression(expr.rhs, func, prog)
+async function runFactorExpression(expr: FactorExpression, func: Function, prog: Program): Promise<Value> {
+  const lhs = await runExpression(expr.lhs, func, prog)
+  const rhs = await runExpression(expr.rhs, func, prog)
   if (lhs.type !== ValueType.Number || rhs.type !== ValueType.Number) {
     throw new Error(`Can only add and subtract numbers`)
   }
@@ -183,21 +214,27 @@ function runFactorExpression(expr: FactorExpression, func: Function, prog: Progr
   }
 }
 
-function runCallExpression(expr: CallExpression, func: Function, prog: Program): Value {
+async function runCallExpression(expr: CallExpression, func: Function, prog: Program): Promise<Value> {
   const callFunc = prog.functions[expr.funcName.source]
   if (!callFunc) {
     throw new Error(`No function found ${expr.funcName.source}`)
   }
-  const params: Record<string, Value> = {}
-  if (expr.params.length !== callFunc.args.length) {
-    throw new Error(`Called func ${callFunc.name.source} with wrong num of params`)
+
+  const params: Value[] = []
+  for (const param of expr.params) {
+    const paramValue = await runExpression(param, func, prog)
+    params.push(paramValue)
   }
-  for (let i = 0; i < expr.params.length; i++) {
-    const val = runExpression(expr.params[i], func, prog)
-    const name = callFunc.args[i]
-    params[name.source] = val
+
+  switch (callFunc.type) {
+    case FunctionType.Script:
+      return runFunction(callFunc, params, prog)
+    case FunctionType.Native:
+      const nativeFunc = callFunc as PNativeFunction
+      return runNativeFunction(nativeFunc, params, prog)
+    default:
+      throw new Error('Unexpected FunctionType')
   }
-  return runFunction(callFunc, params, prog)
 }
 
 function runPrimaryExpression(expr: PrimaryExpression, func: Function): Value {
@@ -216,6 +253,7 @@ function runPrimaryExpression(expr: PrimaryExpression, func: Function): Value {
       const name = expr.value.tokens[0].source
       const val = func.vars[name]
       if (!val) {
+        console.error(func.vars)
         throw new Error(`Undeclared var ${name}`)
       }
       return val

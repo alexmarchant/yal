@@ -1,10 +1,28 @@
 import { Token, TokenType } from '../scanner'
 
 export interface Program {
-  functions: Record<string, Function>
+  functions: Record<string, Function | NativeFunction>
+}
+
+export interface Import {
+  functions: Token[]
+  moduleName: Value
+  tokens: Token[]
+}
+
+export enum FunctionType {
+  Native = 'Native',
+  Script = 'Script',
+}
+
+export interface NativeFunction {
+  type: FunctionType.Native
+  name: string
+  moduleName: string
 }
 
 export interface Function {
+  type: FunctionType.Script
   name: Token
   args: Token[]
   statements: Statement[]
@@ -97,9 +115,10 @@ export interface Value {
 }
 
 export function parse(tokens: Token[]): Program {
-  const functions: Record<string, Function> = {}
+  const functions: Record<string, Function | NativeFunction> = {}
   let position = 0
 
+  // Imports
   while (true) {
     if (position >= tokens.length) break
     if (tokens[position].type === TokenType.NewLine) {
@@ -107,7 +126,31 @@ export function parse(tokens: Token[]): Program {
       continue
     }
 
-    let func = parseFunction(tokens, position)
+    if (tokens[position].type === TokenType.KeyImport) {
+      const imp = parseImport(tokens, position)
+      for (const func of imp.functions) {
+        const nativeFunc: NativeFunction = {
+          type: FunctionType.Native,
+          name: func.source,
+          moduleName: imp.moduleName.value,
+        }
+        functions[nativeFunc.name] = nativeFunc
+      }
+      position += imp.tokens.length
+    } else {
+      break
+    }
+  }
+
+  // Functions
+  while (true) {
+    if (position >= tokens.length) break
+    if (tokens[position].type === TokenType.NewLine) {
+      position++
+      continue
+    }
+
+    const func = parseFunction(tokens, position)
     if (functions[func.name.source]) {
       throw new Error(`Cannot redeclare function ${func.name.source}`)
     }
@@ -116,6 +159,55 @@ export function parse(tokens: Token[]): Program {
   }
 
   return { functions }
+}
+
+function parseImport(tokens: Token[], position: number): Import {
+  let lp = position
+
+  if (tokens[lp].type !== TokenType.KeyImport) {
+    throw new Error('Expecting keyword import')
+  }
+  lp++
+  if (tokens[lp].type !== TokenType.OpenCurly) {
+    throw new Error('Expecting {')
+  }
+  lp++
+
+  const functions: Token[] = []
+  while (true) {
+    if (lp >= tokens.length) break
+    if (tokens[lp].type === TokenType.CloseCurly) {
+      lp++
+      break
+    }
+    if (tokens[lp].type === TokenType.Comma) {
+      lp++
+      continue
+    }
+
+    if (tokens[lp].type !== TokenType.Identifier) {
+      throw new Error('Expecting import vars')
+    }
+    functions.push(tokens[lp])
+    lp++
+  }
+
+  if (tokens[lp].type !== TokenType.KeyFrom) {
+    throw new Error('Expecting keyword from')
+  }
+  lp++
+  if (tokens[lp].type !== TokenType.String) {
+    throw new Error('Expecting module name')
+  }
+  const moduleNameExpr = parsePrimaryExpression(tokens, lp)
+  const moduleName = moduleNameExpr.value
+  lp++
+
+  return {
+    functions,
+    moduleName,
+    tokens: tokens.slice(position, lp)
+  }
 }
 
 function parseFunction(tokens: Token[], position: number): Function {
@@ -180,6 +272,7 @@ function parseFunction(tokens: Token[], position: number): Function {
   }
 
   return {
+    type: FunctionType.Script,
     name,
     args,
     statements,
