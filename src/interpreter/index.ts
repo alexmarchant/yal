@@ -7,9 +7,11 @@ import {
   ExpressionStatement,
   Expression,
   ExpressionType,
-  PrimaryExpression,
+  EqualityExpression,
   TermExpression,
+  FactorExpression,
   CallExpression,
+  PrimaryExpression,
   ValueType as PValueType,
 } from '../parser'
 import { TokenType } from '../scanner'
@@ -23,6 +25,7 @@ interface Function {
 
 enum ValueType {
   Number = 'Number',
+  Bool = 'Bool',
   Void = 'Void',
 }
 
@@ -36,13 +39,13 @@ const VOID: Value = {
   value: null
 }
 
-export function interpret(program: Program) {
+export function interpret(program: Program): any {
   const mainFunc = program.functions[MAIN_FUNCTION_ID]
   if (!program.functions[MAIN_FUNCTION_ID]) {
     throw new Error('No main function found')
   }
   const val = runFunction(mainFunc, {}, program)
-  console.log(val.value)
+  return val.value
 }
 
 function runFunction(pFunc: PFunction, params: Record<string, Value>, prog: Program): Value {
@@ -85,8 +88,12 @@ function runDeclarationStatement(stmt: DeclarationStatement, func: Function, pro
 
 function runExpression(expr: Expression, func: Function, prog: Program): Value {
   switch (expr.type) {
+    case ExpressionType.Equality:
+      return runEqualityExpression(expr as EqualityExpression, func, prog)
     case ExpressionType.Term:
       return runTermExpression(expr as TermExpression, func, prog)
+    case ExpressionType.Factor:
+      return runFactorExpression(expr as FactorExpression, func, prog)
     case ExpressionType.Primary:
       return runPrimaryExpression(expr as PrimaryExpression, func)
     case ExpressionType.Call:
@@ -94,6 +101,34 @@ function runExpression(expr: Expression, func: Function, prog: Program): Value {
     default:
       throw new Error(`ExpressionType not recognized ${expr.type}`)
 
+  }
+}
+
+function runEqualityExpression(expr: EqualityExpression, func: Function, prog: Program): Value {
+  const lhs = runExpression(expr.lhs, func, prog)
+  const rhs = runExpression(expr.rhs, func, prog)
+  if (lhs.type !== rhs.type) {
+    return {
+      type: ValueType.Bool,
+      value: false,
+    }
+  }
+
+  let value: boolean
+  switch (expr.op.type) {
+    case TokenType.Equal:
+      value = lhs.value === rhs.value
+      break
+    case TokenType.NotEqual:
+      value = lhs.value !== rhs.value
+      break
+    default:
+      throw new Error(`Unrecognized operator ${expr.op.type}`)
+  }
+
+  return {
+    type: ValueType.Bool,
+    value,
   }
 }
 
@@ -111,6 +146,31 @@ function runTermExpression(expr: TermExpression, func: Function, prog: Program):
       break
     case TokenType.Plus:
       value = lhs.value + rhs.value
+      break
+    default:
+      throw new Error(`Unrecognized operator ${expr.op.type}`)
+  }
+
+  return {
+    type: ValueType.Number,
+    value,
+  }
+}
+
+function runFactorExpression(expr: FactorExpression, func: Function, prog: Program): Value {
+  const lhs = runExpression(expr.lhs, func, prog)
+  const rhs = runExpression(expr.rhs, func, prog)
+  if (lhs.type !== ValueType.Number || rhs.type !== ValueType.Number) {
+    throw new Error(`Can only add and subtract numbers`)
+  }
+
+  let value: number
+  switch (expr.op.type) {
+    case TokenType.Star:
+      value = lhs.value * rhs.value
+      break
+    case TokenType.Slash:
+      value = lhs.value / rhs.value
       break
     default:
       throw new Error(`Unrecognized operator ${expr.op.type}`)
@@ -144,6 +204,11 @@ function runPrimaryExpression(expr: PrimaryExpression, func: Function): Value {
     case PValueType.Number:
       return {
         type: ValueType.Number,
+        value: expr.value.value
+      }
+    case PValueType.Bool:
+      return {
+        type: ValueType.Bool,
         value: expr.value.value
       }
     case PValueType.Identifier:

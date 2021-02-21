@@ -1,0 +1,7 @@
+func main() {
+  return simple()
+}
+
+func simple() {
+  return 8
+}

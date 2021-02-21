@@ -39,9 +39,11 @@ export interface DeclarationStatement extends Statement{
 }
 
 export enum ExpressionType {
-  Primary = 'Primary',
+  Equality = 'Equality',
   Term = 'Term',
+  Factor = 'Factor',
   Call = 'Call',
+  Primary = 'Primary',
 }
 
 export interface Expression {
@@ -49,8 +51,22 @@ export interface Expression {
   tokens: Token[]
 }
 
+export interface EqualityExpression extends Expression {
+  type: ExpressionType.Equality
+  lhs: Expression
+  op: Token
+  rhs: Expression
+}
+
 export interface TermExpression extends Expression {
   type: ExpressionType.Term
+  lhs: Expression
+  op: Token
+  rhs: Expression
+}
+
+export interface FactorExpression extends Expression {
+  type: ExpressionType.Factor
   lhs: Expression
   op: Token
   rhs: Expression
@@ -69,7 +85,8 @@ export interface PrimaryExpression extends Expression {
 
 export enum ValueType {
   Number = 'Number',
-  Identifier = 'Identifier'
+  Identifier = 'Identifier',
+  Bool = 'Bool'
 }
 
 export interface Value {
@@ -206,23 +223,70 @@ function parseStatement(tokens: Token[], position: number): Statement {
 }
 
 function parseExpression(tokens: Token[], position: number): Expression {
-  return parseTermExpression(tokens, position)
+  return parseEqualityExpression(tokens, position)
+}
+
+function parseEqualityExpression(tokens: Token[], position: number): Expression {
+  let lp = position
+
+  const lhs = parseTermExpression(tokens, lp)
+  lp += lhs.tokens.length
+
+  const op = tokens[lp]
+  if ([TokenType.NotEqual, TokenType.Equal].includes(op.type)) {
+    lp++
+    const rhs = parseExpression(tokens, lp)
+    lp += rhs.tokens.length
+    const expr: EqualityExpression = {
+      type: ExpressionType.Equality,
+      lhs,
+      op,
+      rhs,
+      tokens: tokens.slice(position, lp)
+    }
+    return expr
+  } else {
+    return lhs
+  }
 }
 
 function parseTermExpression(tokens: Token[], position: number): Expression {
+  let lp = position
+
+  const lhs = parseFactorExpression(tokens, lp)
+  lp += lhs.tokens.length
+
+  const op = tokens[lp]
+  if ([TokenType.Plus, TokenType.Minus].includes(op.type)) {
+    lp++
+    const rhs = parseExpression(tokens, lp)
+    lp += rhs.tokens.length
+    const expr: TermExpression = {
+      type: ExpressionType.Term,
+      lhs,
+      op,
+      rhs,
+      tokens: tokens.slice(position, lp)
+    }
+    return expr
+  } else {
+    return lhs
+  }
+}
+
+function parseFactorExpression(tokens: Token[], position: number): Expression {
   let lp = position
 
   const lhs = parseCallExpression(tokens, lp)
   lp += lhs.tokens.length
 
   const op = tokens[lp]
-
-  if ([TokenType.Plus, TokenType.Minus].includes(op.type)) {
+  if ([TokenType.Star, TokenType.Slash].includes(op.type)) {
     lp++
-    const rhs = parseCallExpression(tokens, lp)
+    const rhs = parseExpression(tokens, lp)
     lp += rhs.tokens.length
-    const expr: TermExpression = {
-      type: ExpressionType.Term,
+    const expr: FactorExpression = {
+      type: ExpressionType.Factor,
       lhs,
       op,
       rhs,
@@ -274,6 +338,13 @@ function parsePrimaryExpression(tokens: Token[], position: number): PrimaryExpre
       value = {
         type: ValueType.Number,
         value: parseFloat(token.source),
+        token
+      }
+      break
+    case TokenType.Bool:
+      value = {
+        type: ValueType.Bool,
+        value: token.source === 'true' ? true : false,
         token
       }
       break

@@ -21,6 +21,9 @@ export enum TokenType {
   CloseCurly = 'CloseCurly',
   KeyFunc = 'KeyFunc',
   KeyReturn = 'KeyReturn',
+  Bool = 'Bool',
+  NotEqual = 'NotEqual',
+  Equal = 'Equal',
 }
 
 export function scan(source: string): Token[] {
@@ -107,6 +110,26 @@ function getToken(source: string, position: number): Token | false {
     }
   }
 
+  const notEq = getMatch(source, position, /^!=/)
+  if (notEq) {
+    return {
+      type: TokenType.NotEqual,
+      source: notEq,
+      line,
+      col
+    }
+  }
+
+  const eq = getMatch(source, position, /^==/)
+  if (eq) {
+    return {
+      type: TokenType.Equal,
+      source: eq,
+      line,
+      col
+    }
+  }
+
   const num = getMatch(source, position, /^\d+/)
   if (num) {
     return {
@@ -127,6 +150,10 @@ function getToken(source: string, position: number): Token | false {
         break
       case 'return':
         type = TokenType.KeyReturn
+        break
+      case 'true':
+      case 'false':
+        type = TokenType.Bool
         break
       default:
         type = TokenType.Identifier
