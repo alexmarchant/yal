@@ -1,0 +1,5 @@
+import { serveStatic } from "server"
+
+func main() {
+  serveStatic("public", 3000)
+}
