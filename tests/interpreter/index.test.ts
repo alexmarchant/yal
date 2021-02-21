@@ -66,3 +66,9 @@ describe('not equal', () => {
     expect(interpretFile(__dirname + '/../samples/not-equal-fail.yal')).toBe(false)
   })
 })
+
+describe('string', () => {
+  it('works', () => {
+    expect(interpretFile(__dirname + '/../samples/string.yal')).toBe('test')
+  })
+})

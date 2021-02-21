@@ -86,13 +86,14 @@ export interface PrimaryExpression extends Expression {
 export enum ValueType {
   Number = 'Number',
   Identifier = 'Identifier',
-  Bool = 'Bool'
+  Bool = 'Bool',
+  String = 'String',
 }
 
 export interface Value {
   type: ValueType,
   value: any,
-  token: Token,
+  tokens: Token[],
 }
 
 export function parse(tokens: Token[]): Program {
@@ -338,21 +339,28 @@ function parsePrimaryExpression(tokens: Token[], position: number): PrimaryExpre
       value = {
         type: ValueType.Number,
         value: parseFloat(token.source),
-        token
+        tokens: [token]
       }
       break
     case TokenType.Bool:
       value = {
         type: ValueType.Bool,
         value: token.source === 'true' ? true : false,
-        token
+        tokens: [token]
       }
       break
     case TokenType.Identifier:
       value = {
         type: ValueType.Identifier,
         value: null,
-        token
+        tokens: [token]
+      }
+      break
+    case TokenType.String:
+      value = {
+        type: ValueType.String,
+        value: token.source.substring(1, token.source.length - 1),
+        tokens: [token]
       }
       break
     default:

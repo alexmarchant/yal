@@ -24,6 +24,7 @@ export enum TokenType {
   Bool = 'Bool',
   NotEqual = 'NotEqual',
   Equal = 'Equal',
+  String = 'String',
 }
 
 export function scan(source: string): Token[] {
@@ -105,6 +106,16 @@ function getToken(source: string, position: number): Token | false {
     return {
       type,
       source: source[position],
+      line,
+      col
+    }
+  }
+
+  const str = getMatch(source, position, /^".*?"/)
+  if (str) {
+    return {
+      type: TokenType.String,
+      source: str,
       line,
       col
     }

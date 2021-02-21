@@ -27,6 +27,7 @@ enum ValueType {
   Number = 'Number',
   Bool = 'Bool',
   Void = 'Void',
+  String = 'String',
 }
 
 interface Value {
@@ -212,12 +213,17 @@ function runPrimaryExpression(expr: PrimaryExpression, func: Function): Value {
         value: expr.value.value
       }
     case PValueType.Identifier:
-      const name = expr.value.token.source
+      const name = expr.value.tokens[0].source
       const val = func.vars[name]
       if (!val) {
         throw new Error(`Undeclared var ${name}`)
       }
       return val
+    case PValueType.String:
+      return {
+        type: ValueType.String,
+        value: expr.value.value
+      }
     default:
       throw new Error(`Unrecognized value type ${expr.value.type}`)
   }
